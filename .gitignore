@@ -1,0 +1,84 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go build outputs
+/bin/
+kcloud-scheduler
+scheduler
+core
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+*.prof
+coverage.txt
+coverage.html
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Dependency directories
+vendor/
+
+# Go mod cache
+go.sum
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Config files with secrets
+config.yaml
+config.yml
+*.local.yaml
+*.local.yml
+
+# Logs
+*.log
+logs/
+*.out
+*.err
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Kubernetes generated files
+config/crd/bases/
+config/rbac/
+config/deployment/
+
+# Certificate files
+*.pem
+*.key
+*.crt
+*.cert
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Build directories
+build/
+dist/
