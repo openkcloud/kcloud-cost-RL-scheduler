@@ -281,6 +281,42 @@ test-cleanup: ## Cleanup test environment.
 	kubectl delete namespace kcloud-e2e-test --ignore-not-found=true
 	@echo "Test environment cleanup complete"
 
+.PHONY: helm-lint
+helm-lint: ## Lint Helm chart.
+	helm lint charts/kcloud-operator
+
+.PHONY: helm-package
+helm-package: ## Package Helm chart.
+	helm package charts/kcloud-operator
+
+.PHONY: helm-install
+helm-install: ## Install Helm chart.
+	helm install kcloud-operator charts/kcloud-operator --create-namespace --namespace kcloud-operator-system
+
+.PHONY: helm-upgrade
+helm-upgrade: ## Upgrade Helm chart.
+	helm upgrade kcloud-operator charts/kcloud-operator --namespace kcloud-operator-system
+
+.PHONY: helm-uninstall
+helm-uninstall: ## Uninstall Helm chart.
+	helm uninstall kcloud-operator --namespace kcloud-operator-system
+
+.PHONY: helm-status
+helm-status: ## Check Helm chart status.
+	helm status kcloud-operator --namespace kcloud-operator-system
+
+.PHONY: helm-template
+helm-template: ## Generate Helm templates.
+	helm template kcloud-operator charts/kcloud-operator
+
+.PHONY: helm-dry-run
+helm-dry-run: ## Dry run Helm installation.
+	helm install kcloud-operator charts/kcloud-operator --dry-run --debug
+
+.PHONY: helm-values
+helm-values: ## Show Helm chart values.
+	helm show values charts/kcloud-operator
+
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
