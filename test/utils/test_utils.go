@@ -22,13 +22,24 @@ import (
 	"strings"
 
 	"go.yaml.in/yaml/v2"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	kcloudv1alpha1 "github.com/KETI-Cloud-Platform/k8s-workload-operator/api/v1alpha1"
+	"github.com/KETI-Cloud-Platform/k8s-workload-operator/pkg/optimizer"
 )
+
+// Helper functions for pointer types
+func int32Ptr(i int32) *int32 {
+	return &i
+}
+
+func float64Ptr(f float64) *float64 {
+	return &f
+}
 
 // CreateTestWorkloadOptimizer creates a test WorkloadOptimizer resource
 func CreateTestWorkloadOptimizer(name, namespace string) *kcloudv1alpha1.WorkloadOptimizer {
@@ -40,17 +51,17 @@ func CreateTestWorkloadOptimizer(name, namespace string) *kcloudv1alpha1.Workloa
 		Spec: kcloudv1alpha1.WorkloadOptimizerSpec{
 			WorkloadType: "training",
 			Priority:     5,
-			ResourceRequirements: kcloudv1alpha1.ResourceRequirements{
-				CPU:    resource.MustParse("2"),
-				Memory: resource.MustParse("4Gi"),
+			Resources: kcloudv1alpha1.ResourceRequirements{
+				CPU:    "2",
+				Memory: "4Gi",
 				GPU:    1,
 				NPU:    0,
 			},
 			CostConstraints: kcloudv1alpha1.CostConstraints{
 				MaxCostPerHour: 10.0,
-				BudgetLimit:    1000.0,
+				BudgetLimit:    float64Ptr(1000.0),
 			},
-			PowerConstraints: kcloudv1alpha1.PowerConstraints{
+			PowerConstraints: &kcloudv1alpha1.PowerConstraints{
 				MaxPowerUsage: 500.0,
 			},
 		},
@@ -69,25 +80,25 @@ func CreateTestNode(name string, nodeType string) *corev1.Node {
 		allocatable = corev1.ResourceList{
 			corev1.ResourceCPU:    resource.MustParse("4"),
 			corev1.ResourceMemory: resource.MustParse("8Gi"),
-			corev1.ResourceGPU:    resource.MustParse("0"),
+			"nvidia.com/gpu":      resource.MustParse("0"),
 		}
 	case "gpu-optimized":
 		allocatable = corev1.ResourceList{
 			corev1.ResourceCPU:    resource.MustParse("8"),
 			corev1.ResourceMemory: resource.MustParse("16Gi"),
-			corev1.ResourceGPU:    resource.MustParse("2"),
+			"nvidia.com/gpu":      resource.MustParse("2"),
 		}
 	case "npu-optimized":
 		allocatable = corev1.ResourceList{
 			corev1.ResourceCPU:    resource.MustParse("6"),
 			corev1.ResourceMemory: resource.MustParse("12Gi"),
-			corev1.ResourceNPU:    resource.MustParse("1"),
+			"huawei.com/npu":      resource.MustParse("1"),
 		}
 	default:
 		allocatable = corev1.ResourceList{
 			corev1.ResourceCPU:    resource.MustParse("4"),
 			corev1.ResourceMemory: resource.MustParse("8Gi"),
-			corev1.ResourceGPU:    resource.MustParse("0"),
+			"nvidia.com/gpu":      resource.MustParse("0"),
 		}
 	}
 
@@ -146,12 +157,20 @@ func CreateTestCostPolicy(name, namespace string) *kcloudv1alpha1.CostPolicy {
 			BudgetLimit:      1000.0,
 			CostPerHourLimit: 10.0,
 			SpotInstancePolicy: kcloudv1alpha1.SpotInstancePolicy{
-				Enabled:  true,
-				MaxPrice: 5.0,
+				Enabled:           true,
+				MaxSpotPercentage: int32Ptr(50),
 			},
-			AlertThresholds: kcloudv1alpha1.CostAlertThresholds{
-				BudgetUtilization: 80.0,
-				CostIncrease:      20.0,
+			AlertThresholds: []kcloudv1alpha1.CostAlertThreshold{
+				{
+					Type:     "budget_usage",
+					Value:    80.0,
+					Severity: "warning",
+				},
+				{
+					Type:     "cost_increase",
+					Value:    20.0,
+					Severity: "warning",
+				},
 			},
 		},
 	}
@@ -165,15 +184,23 @@ func CreateTestPowerPolicy(name, namespace string) *kcloudv1alpha1.PowerPolicy {
 			Namespace: namespace,
 		},
 		Spec: kcloudv1alpha1.PowerPolicySpec{
-			MaxPowerUsage:    500.0,
-			EfficiencyTarget: 80.0,
-			GreenEnergyPolicy: kcloudv1alpha1.GreenEnergyPolicy{
-				Enabled:    true,
-				Preference: "renewable",
+			MaxPowerUsage:         500.0,
+			PowerEfficiencyTarget: float64Ptr(80.0),
+			GreenEnergyPolicy: &kcloudv1alpha1.GreenEnergyPolicy{
+				Enabled:                  true,
+				MinGreenEnergyPercentage: int32Ptr(80),
 			},
-			AlertThresholds: kcloudv1alpha1.PowerAlertThresholds{
-				PowerUsage: 90.0,
-				Efficiency: 70.0,
+			PowerAlertThresholds: []kcloudv1alpha1.PowerAlertThreshold{
+				{
+					Type:     "power_usage",
+					Value:    90.0,
+					Severity: "warning",
+				},
+				{
+					Type:     "power_efficiency",
+					Value:    70.0,
+					Severity: "warning",
+				},
 			},
 		},
 	}
@@ -189,10 +216,10 @@ func CreateTestWorkloadState(workload *kcloudv1alpha1.WorkloadOptimizer, pods []
 }
 
 // CreateTestCurrentState creates a test CurrentState
-func CreateTestCurrentState(pods []corev1.Pod, nodes []corev1.Node) *CurrentState {
-	return &CurrentState{
-		Pods:  pods,
-		Nodes: nodes,
+func CreateTestCurrentState(pods []corev1.Pod, nodes []corev1.Node) *optimizer.WorkloadState {
+	return &optimizer.WorkloadState{
+		Pods:           pods,
+		AvailableNodes: nodes,
 	}
 }
 
@@ -210,7 +237,7 @@ func CreateTestResourceRequirements(cpu, memory, gpu, npu string) kcloudv1alpha1
 func CreateTestCostConstraints(maxCostPerHour, budgetLimit float64) kcloudv1alpha1.CostConstraints {
 	return kcloudv1alpha1.CostConstraints{
 		MaxCostPerHour: maxCostPerHour,
-		BudgetLimit:    budgetLimit,
+		BudgetLimit:    &budgetLimit,
 	}
 }
 
@@ -231,11 +258,18 @@ func CreateTestPlacementPolicy(nodeAffinity *corev1.NodeAffinity) *kcloudv1alpha
 // CreateTestAutoScalingSpec creates test auto-scaling spec
 func CreateTestAutoScalingSpec(enabled bool, minReplicas, maxReplicas int32, targetCPU, targetMemory int32) *kcloudv1alpha1.AutoScalingSpec {
 	return &kcloudv1alpha1.AutoScalingSpec{
-		Enabled:      enabled,
-		MinReplicas:  minReplicas,
-		MaxReplicas:  maxReplicas,
-		TargetCPU:    targetCPU,
-		TargetMemory: targetMemory,
+		MinReplicas: minReplicas,
+		MaxReplicas: maxReplicas,
+		Metrics: []kcloudv1alpha1.ScalingMetric{
+			{
+				Type:      "cpu",
+				Threshold: targetCPU,
+			},
+			{
+				Type:      "memory",
+				Threshold: targetMemory,
+			},
+		},
 	}
 }
 
@@ -377,13 +411,13 @@ func GetWorkloadOptimizerScore(name, namespace string) (string, error) {
 }
 
 // CreateTestDeployment creates a test deployment
-func CreateTestDeployment(name, namespace string) *corev1.Deployment {
-	return &corev1.Deployment{
+func CreateTestDeployment(name, namespace string) *appsv1.Deployment {
+	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: corev1.DeploymentSpec{
+		Spec: appsv1.DeploymentSpec{
 			Replicas: int32Ptr(1),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{

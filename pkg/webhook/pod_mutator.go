@@ -18,6 +18,7 @@ package webhook
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -46,56 +47,73 @@ func NewPodMutator(client client.Client) *PodMutator {
 
 // Handle handles pod mutation requests
 func (m *PodMutator) Handle(ctx context.Context, req admission.Request) admission.Response {
-	log := log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
 	pod := &corev1.Pod{}
 	if err := m.decoder.Decode(req, pod); err != nil {
-		log.Error(err, "Failed to decode pod")
+		logger.Error(err, "Failed to decode pod")
 		return admission.Errored(400, err)
 	}
 
-	log.V(1).Info("Processing pod mutation",
+	logger.V(1).Info("Processing pod mutation",
 		"pod", pod.Name,
 		"namespace", pod.Namespace)
 
 	// Check if pod should be optimized
 	if !m.shouldOptimizePod(pod) {
-		log.V(1).Info("Pod does not need optimization", "pod", pod.Name)
+		logger.V(1).Info("Pod does not need optimization", "pod", pod.Name)
 		return admission.Allowed("No optimization needed")
 	}
 
 	// Find applicable WorkloadOptimizer
 	wo, err := m.findApplicableWorkloadOptimizer(ctx, pod)
 	if err != nil {
-		log.Error(err, "Failed to find applicable WorkloadOptimizer")
+		logger.Error(err, "Failed to find applicable WorkloadOptimizer")
 		return admission.Allowed("No WorkloadOptimizer found")
 	}
 
 	if wo == nil {
-		log.V(1).Info("No applicable WorkloadOptimizer found", "pod", pod.Name)
+		logger.V(1).Info("No applicable WorkloadOptimizer found", "pod", pod.Name)
 		return admission.Allowed("No applicable WorkloadOptimizer")
 	}
 
 	// Apply optimization to pod
 	originalPod := pod.DeepCopy()
 	if err := m.applyOptimizationToPod(pod, wo); err != nil {
-		log.Error(err, "Failed to apply optimization to pod")
+		logger.Error(err, "Failed to apply optimization to pod")
 		return admission.Errored(500, err)
 	}
 
-	log.Info("Pod optimization applied",
+	logger.Info("Pod optimization applied",
 		"pod", pod.Name,
 		"workloadOptimizer", wo.Name,
 		"changes", m.getChanges(originalPod, pod))
 
 	// Create patch response
-	patch, err := admission.NewObjectPatcher(originalPod, pod).CreatePatch()
+	patch, err := createPatch(originalPod, pod)
 	if err != nil {
-		log.Error(err, "Failed to create patch")
+		logger.Error(err, "Failed to create patch")
 		return admission.Errored(500, err)
 	}
 
 	return admission.PatchResponseFromRaw(req.Object.Raw, patch)
+}
+
+// createPatch creates a JSON patch between two pods
+func createPatch(original, modified *corev1.Pod) ([]byte, error) {
+	// Simple implementation - in production, use proper JSON patch library
+	_, err := json.Marshal(original)
+	if err != nil {
+		return nil, err
+	}
+
+	modifiedBytes, err := json.Marshal(modified)
+	if err != nil {
+		return nil, err
+	}
+
+	// For now, return the modified pod as patch
+	return modifiedBytes, nil
 }
 
 // shouldOptimizePod determines if a pod should be optimized
@@ -129,13 +147,13 @@ func (m *PodMutator) shouldOptimizePod(pod *corev1.Pod) bool {
 
 // findApplicableWorkloadOptimizer finds the WorkloadOptimizer that applies to this pod
 func (m *PodMutator) findApplicableWorkloadOptimizer(ctx context.Context, pod *corev1.Pod) (*kcloudv1alpha1.WorkloadOptimizer, error) {
-	log := log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
 	// First, check if pod has explicit WorkloadOptimizer reference
 	if pod.Annotations != nil {
 		if woName, exists := pod.Annotations["kcloud.io/workload-optimizer"]; exists {
 			// TODO: Implement when CRD types are properly generated
-			log.V(1).Info("WorkloadOptimizer reference found but CRD not available", "name", woName)
+			logger.V(1).Info("WorkloadOptimizer reference found but CRD not available", "name", woName)
 			return nil, nil
 		}
 	}
@@ -143,7 +161,7 @@ func (m *PodMutator) findApplicableWorkloadOptimizer(ctx context.Context, pod *c
 	// Try to infer WorkloadOptimizer based on pod characteristics
 	wo, err := m.inferWorkloadOptimizer(ctx, pod)
 	if err != nil {
-		log.Error(err, "Failed to infer WorkloadOptimizer")
+		logger.Error(err, "Failed to infer WorkloadOptimizer")
 		return nil, err
 	}
 
@@ -152,7 +170,7 @@ func (m *PodMutator) findApplicableWorkloadOptimizer(ctx context.Context, pod *c
 
 // inferWorkloadOptimizer infers the appropriate WorkloadOptimizer based on pod characteristics
 func (m *PodMutator) inferWorkloadOptimizer(ctx context.Context, pod *corev1.Pod) (*kcloudv1alpha1.WorkloadOptimizer, error) {
-	log := log.FromContext(ctx)
+	_ = log.FromContext(ctx)
 
 	// TODO: Implement when CRD types are properly generated
 	// For now, return nil to indicate no WorkloadOptimizer found
@@ -285,7 +303,7 @@ func (m *PodMutator) labelsMatch(pod *corev1.Pod, wo *kcloudv1alpha1.WorkloadOpt
 
 // applyOptimizationToPod applies optimization policies to the pod
 func (m *PodMutator) applyOptimizationToPod(pod *corev1.Pod, wo *kcloudv1alpha1.WorkloadOptimizer) error {
-	log := log.FromContext(context.Background())
+	logger := log.FromContext(context.Background())
 
 	// Add optimization annotations
 	if pod.Annotations == nil {
@@ -297,29 +315,29 @@ func (m *PodMutator) applyOptimizationToPod(pod *corev1.Pod, wo *kcloudv1alpha1.
 
 	// Apply resource optimization
 	if err := m.applyResourceOptimization(pod, wo); err != nil {
-		log.Error(err, "Failed to apply resource optimization")
+		logger.Error(err, "Failed to apply resource optimization")
 		return err
 	}
 
 	// Apply node selection optimization
 	if err := m.applyNodeSelectionOptimization(pod, wo); err != nil {
-		log.Error(err, "Failed to apply node selection optimization")
+		logger.Error(err, "Failed to apply node selection optimization")
 		return err
 	}
 
 	// Apply cost optimization
 	if err := m.applyCostOptimization(pod, wo); err != nil {
-		log.Error(err, "Failed to apply cost optimization")
+		logger.Error(err, "Failed to apply cost optimization")
 		return err
 	}
 
 	// Apply power optimization
 	if err := m.applyPowerOptimization(pod, wo); err != nil {
-		log.Error(err, "Failed to apply power optimization")
+		logger.Error(err, "Failed to apply power optimization")
 		return err
 	}
 
-	log.Info("Optimization applied to pod",
+	logger.Info("Optimization applied to pod",
 		"pod", pod.Name,
 		"workloadOptimizer", wo.Name)
 

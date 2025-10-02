@@ -53,17 +53,17 @@ var _ = Describe("Optimizer Engine", func() {
 			Spec: kcloudv1alpha1.WorkloadOptimizerSpec{
 				WorkloadType: "training",
 				Priority:     5,
-				ResourceRequirements: kcloudv1alpha1.ResourceRequirements{
-					CPU:    resource.MustParse("2"),
-					Memory: resource.MustParse("4Gi"),
+				Resources: kcloudv1alpha1.ResourceRequirements{
+					CPU:    "2",
+					Memory: "4Gi",
 					GPU:    1,
 					NPU:    0,
 				},
-				CostConstraints: kcloudv1alpha1.CostConstraints{
+				CostConstraints: &kcloudv1alpha1.CostConstraints{
 					MaxCostPerHour: 10.0,
 					BudgetLimit:    1000.0,
 				},
-				PowerConstraints: kcloudv1alpha1.PowerConstraints{
+				PowerConstraints: &kcloudv1alpha1.PowerConstraints{
 					MaxPowerUsage: 500.0,
 				},
 			},
@@ -74,13 +74,13 @@ var _ = Describe("Optimizer Engine", func() {
 		It("should optimize workload successfully", func() {
 			// Create test workload state
 			state := &WorkloadState{
-				Workload: workload,
-				Pods:     []corev1.Pod{},
-				Nodes:    []corev1.Node{},
+				WorkloadOptimizer: workload,
+				Pods:              []corev1.Pod{},
+				AvailableNodes:    []corev1.Node{},
 			}
 
 			// Optimize
-			result, err := engine.Optimize(ctx, state)
+			result := engine.Optimize(ctx, state)
 
 			// Verify result
 			Expect(err).NotTo(HaveOccurred())
@@ -94,13 +94,13 @@ var _ = Describe("Optimizer Engine", func() {
 		It("should respect cost constraints", func() {
 			// Create test workload state
 			state := &WorkloadState{
-				Workload: workload,
-				Pods:     []corev1.Pod{},
-				Nodes:    []corev1.Node{},
+				WorkloadOptimizer: workload,
+				Pods:              []corev1.Pod{},
+				AvailableNodes:    []corev1.Node{},
 			}
 
 			// Optimize
-			result, err := engine.Optimize(ctx, state)
+			result := engine.Optimize(ctx, state)
 
 			// Verify cost constraints
 			Expect(err).NotTo(HaveOccurred())
@@ -111,13 +111,13 @@ var _ = Describe("Optimizer Engine", func() {
 		It("should respect power constraints", func() {
 			// Create test workload state
 			state := &WorkloadState{
-				Workload: workload,
-				Pods:     []corev1.Pod{},
-				Nodes:    []corev1.Node{},
+				WorkloadOptimizer: workload,
+				Pods:              []corev1.Pod{},
+				AvailableNodes:    []corev1.Node{},
 			}
 
 			// Optimize
-			result, err := engine.Optimize(ctx, state)
+			result := engine.Optimize(ctx, state)
 
 			// Verify power constraints
 			Expect(err).NotTo(HaveOccurred())
@@ -131,12 +131,12 @@ var _ = Describe("Optimizer Engine", func() {
 			for _, workloadType := range workloadTypes {
 				workload.Spec.WorkloadType = workloadType
 				state := &WorkloadState{
-					Workload: workload,
-					Pods:     []corev1.Pod{},
-					Nodes:    []corev1.Node{},
+					WorkloadOptimizer: workload,
+					Pods:              []corev1.Pod{},
+					AvailableNodes:    []corev1.Node{},
 				}
 
-				result, err := engine.Optimize(ctx, state)
+				result := engine.Optimize(ctx, state)
 
 				Expect(err).NotTo(HaveOccurred())
 				Expect(result).NotTo(BeNil())
@@ -151,12 +151,12 @@ var _ = Describe("Optimizer Engine", func() {
 			for _, priority := range priorities {
 				workload.Spec.Priority = priority
 				state := &WorkloadState{
-					Workload: workload,
-					Pods:     []corev1.Pod{},
-					Nodes:    []corev1.Node{},
+					WorkloadOptimizer: workload,
+					Pods:              []corev1.Pod{},
+					AvailableNodes:    []corev1.Node{},
 				}
 
-				result, err := engine.Optimize(ctx, state)
+				result := engine.Optimize(ctx, state)
 
 				Expect(err).NotTo(HaveOccurred())
 				Expect(result).NotTo(BeNil())
@@ -167,12 +167,12 @@ var _ = Describe("Optimizer Engine", func() {
 
 		It("should handle empty workload state", func() {
 			state := &WorkloadState{
-				Workload: workload,
-				Pods:     []corev1.Pod{},
-				Nodes:    []corev1.Node{},
+				WorkloadOptimizer: workload,
+				Pods:              []corev1.Pod{},
+				AvailableNodes:    []corev1.Node{},
 			}
 
-			result, err := engine.Optimize(ctx, state)
+			result := engine.Optimize(ctx, state)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -180,12 +180,12 @@ var _ = Describe("Optimizer Engine", func() {
 
 		It("should handle nil workload", func() {
 			state := &WorkloadState{
-				Workload: nil,
-				Pods:     []corev1.Pod{},
-				Nodes:    []corev1.Node{},
+				Workload:       nil,
+				Pods:           []corev1.Pod{},
+				AvailableNodes: []corev1.Node{},
 			}
 
-			result, err := engine.Optimize(ctx, state)
+			result := engine.Optimize(ctx, state)
 
 			Expect(err).To(HaveOccurred())
 			Expect(result).To(BeNil())
@@ -217,12 +217,12 @@ var _ = Describe("Optimizer Engine", func() {
 			}
 
 			state := &WorkloadState{
-				Workload: workload,
-				Pods:     []corev1.Pod{*pod},
-				Nodes:    []corev1.Node{},
+				WorkloadOptimizer: workload,
+				Pods:              []corev1.Pod{*pod},
+				AvailableNodes:    []corev1.Node{},
 			}
 
-			result, err := engine.Optimize(ctx, state)
+			result := engine.Optimize(ctx, state)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -240,18 +240,18 @@ var _ = Describe("Optimizer Engine", func() {
 					Allocatable: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse("4"),
 						corev1.ResourceMemory: resource.MustParse("8Gi"),
-						corev1.ResourceGPU:    resource.MustParse("2"),
+						"nvidia.com/gpu":      resource.MustParse("2"),
 					},
 				},
 			}
 
 			state := &WorkloadState{
-				Workload: workload,
-				Pods:     []corev1.Pod{},
-				Nodes:    []corev1.Node{*node},
+				WorkloadOptimizer: workload,
+				Pods:              []corev1.Pod{},
+				AvailableNodes:    []corev1.Node{*node},
 			}
 
-			result, err := engine.Optimize(ctx, state)
+			result := engine.Optimize(ctx, state)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -266,12 +266,12 @@ var _ = Describe("Optimizer Engine", func() {
 			workload.Spec.CostConstraints.MaxCostPerHour = 0.1
 
 			state := &WorkloadState{
-				Workload: workload,
-				Pods:     []corev1.Pod{},
-				Nodes:    []corev1.Node{},
+				WorkloadOptimizer: workload,
+				Pods:              []corev1.Pod{},
+				AvailableNodes:    []corev1.Node{},
 			}
 
-			result, err := engine.Optimize(ctx, state)
+			result := engine.Optimize(ctx, state)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -284,12 +284,12 @@ var _ = Describe("Optimizer Engine", func() {
 			workload.Spec.PowerConstraints.MaxPowerUsage = 10.0
 
 			state := &WorkloadState{
-				Workload: workload,
-				Pods:     []corev1.Pod{},
-				Nodes:    []corev1.Node{},
+				WorkloadOptimizer: workload,
+				Pods:              []corev1.Pod{},
+				AvailableNodes:    []corev1.Node{},
 			}
 
-			result, err := engine.Optimize(ctx, state)
+			result := engine.Optimize(ctx, state)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -303,12 +303,12 @@ var _ = Describe("Optimizer Engine", func() {
 			workload.Spec.PowerConstraints.MaxPowerUsage = 250.0
 
 			state := &WorkloadState{
-				Workload: workload,
-				Pods:     []corev1.Pod{},
-				Nodes:    []corev1.Node{},
+				WorkloadOptimizer: workload,
+				Pods:              []corev1.Pod{},
+				AvailableNodes:    []corev1.Node{},
 			}
 
-			result, err := engine.Optimize(ctx, state)
+			result := engine.Optimize(ctx, state)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -328,12 +328,12 @@ var _ = Describe("Optimizer Engine", func() {
 			}
 
 			state := &WorkloadState{
-				Workload: workload,
-				Pods:     []corev1.Pod{},
-				Nodes:    []corev1.Node{},
+				WorkloadOptimizer: workload,
+				Pods:              []corev1.Pod{},
+				AvailableNodes:    []corev1.Node{},
 			}
 
-			result, err := engine.Optimize(ctx, state)
+			result := engine.Optimize(ctx, state)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -351,12 +351,12 @@ var _ = Describe("Optimizer Engine", func() {
 			}
 
 			state := &WorkloadState{
-				Workload: workload,
-				Pods:     []corev1.Pod{},
-				Nodes:    []corev1.Node{},
+				WorkloadOptimizer: workload,
+				Pods:              []corev1.Pod{},
+				AvailableNodes:    []corev1.Node{},
 			}
 
-			result, err := engine.Optimize(ctx, state)
+			result := engine.Optimize(ctx, state)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())

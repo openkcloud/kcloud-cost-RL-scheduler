@@ -106,17 +106,17 @@ var _ = Describe("WorkloadOptimizer Controller", func() {
 				Spec: kcloudv1alpha1.WorkloadOptimizerSpec{
 					WorkloadType: "training",
 					Priority:     5,
-					ResourceRequirements: kcloudv1alpha1.ResourceRequirements{
-						CPU:    resource.MustParse("2"),
-						Memory: resource.MustParse("4Gi"),
+					Resources: kcloudv1alpha1.ResourceRequirements{
+						CPU:    "2",
+						Memory: "4Gi",
 						GPU:    1,
 						NPU:    0,
 					},
-					CostConstraints: kcloudv1alpha1.CostConstraints{
+					CostConstraints: &kcloudv1alpha1.CostConstraints{
 						MaxCostPerHour: 10.0,
-						BudgetLimit:    1000.0,
+						BudgetLimit:    float64Ptr(1000.0),
 					},
-					PowerConstraints: kcloudv1alpha1.PowerConstraints{
+					PowerConstraints: &kcloudv1alpha1.PowerConstraints{
 						MaxPowerUsage: 500.0,
 					},
 				},
@@ -223,7 +223,7 @@ var _ = Describe("WorkloadOptimizer Controller", func() {
 			var updatedWorkload kcloudv1alpha1.WorkloadOptimizer
 			Expect(fakeClient.Get(ctx, req.NamespacedName, &updatedWorkload)).To(Succeed())
 			Expect(updatedWorkload.Status.Phase).NotTo(BeEmpty())
-			Expect(updatedWorkload.Status.LastUpdated).NotTo(BeNil())
+			Expect(updatedWorkload.Status.LastOptimizationTime).NotTo(BeNil())
 		})
 	})
 
@@ -239,9 +239,9 @@ var _ = Describe("WorkloadOptimizer Controller", func() {
 				Spec: kcloudv1alpha1.WorkloadOptimizerSpec{
 					WorkloadType: "training",
 					Priority:     5,
-					ResourceRequirements: kcloudv1alpha1.ResourceRequirements{
-						CPU:    resource.MustParse("2"),
-						Memory: resource.MustParse("4Gi"),
+					Resources: kcloudv1alpha1.ResourceRequirements{
+						CPU:    "2",
+						Memory: "4Gi",
 						GPU:    1,
 						NPU:    0,
 					},
@@ -259,7 +259,7 @@ var _ = Describe("WorkloadOptimizer Controller", func() {
 					Allocatable: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse("4"),
 						corev1.ResourceMemory: resource.MustParse("8Gi"),
-						corev1.ResourceGPU:    resource.MustParse("2"),
+						"nvidia.com/gpu":      resource.MustParse("2"),
 					},
 				},
 			}
@@ -298,7 +298,7 @@ var _ = Describe("WorkloadOptimizer Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(state).NotTo(BeNil())
 			Expect(state.Pods).To(HaveLen(1))
-			Expect(state.Nodes).To(HaveLen(1))
+			Expect(state.AvailableNodes).To(HaveLen(1))
 		})
 
 		It("should handle empty current state", func() {
@@ -309,7 +309,7 @@ var _ = Describe("WorkloadOptimizer Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(state).NotTo(BeNil())
 			Expect(state.Pods).To(BeEmpty())
-			Expect(state.Nodes).To(BeEmpty())
+			Expect(state.AvailableNodes).To(BeEmpty())
 		})
 	})
 
@@ -325,17 +325,17 @@ var _ = Describe("WorkloadOptimizer Controller", func() {
 				Spec: kcloudv1alpha1.WorkloadOptimizerSpec{
 					WorkloadType: "training",
 					Priority:     5,
-					ResourceRequirements: kcloudv1alpha1.ResourceRequirements{
-						CPU:    resource.MustParse("2"),
-						Memory: resource.MustParse("4Gi"),
+					Resources: kcloudv1alpha1.ResourceRequirements{
+						CPU:    "2",
+						Memory: "4Gi",
 						GPU:    1,
 						NPU:    0,
 					},
-					CostConstraints: kcloudv1alpha1.CostConstraints{
+					CostConstraints: &kcloudv1alpha1.CostConstraints{
 						MaxCostPerHour: 10.0,
-						BudgetLimit:    1000.0,
+						BudgetLimit:    float64Ptr(1000.0),
 					},
-					PowerConstraints: kcloudv1alpha1.PowerConstraints{
+					PowerConstraints: &kcloudv1alpha1.PowerConstraints{
 						MaxPowerUsage: 500.0,
 					},
 				},
@@ -344,9 +344,9 @@ var _ = Describe("WorkloadOptimizer Controller", func() {
 
 		It("should perform optimization successfully", func() {
 			// Create test current state
-			currentState := &CurrentState{
-				Pods:  []corev1.Pod{},
-				Nodes: []corev1.Node{},
+			currentState := &optimizer.WorkloadState{
+				Pods:           []corev1.Pod{},
+				AvailableNodes: []corev1.Node{},
 			}
 
 			// Perform optimization
@@ -361,9 +361,9 @@ var _ = Describe("WorkloadOptimizer Controller", func() {
 
 		It("should handle optimization with constraints", func() {
 			// Create test current state
-			currentState := &CurrentState{
-				Pods:  []corev1.Pod{},
-				Nodes: []corev1.Node{},
+			currentState := &optimizer.WorkloadState{
+				Pods:           []corev1.Pod{},
+				AvailableNodes: []corev1.Node{},
 			}
 
 			// Perform optimization
@@ -389,9 +389,9 @@ var _ = Describe("WorkloadOptimizer Controller", func() {
 				Spec: kcloudv1alpha1.WorkloadOptimizerSpec{
 					WorkloadType: "training",
 					Priority:     5,
-					ResourceRequirements: kcloudv1alpha1.ResourceRequirements{
-						CPU:    resource.MustParse("2"),
-						Memory: resource.MustParse("4Gi"),
+					Resources: kcloudv1alpha1.ResourceRequirements{
+						CPU:    "2",
+						Memory: "4Gi",
 						GPU:    1,
 						NPU:    0,
 					},

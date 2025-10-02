@@ -107,7 +107,7 @@ func (smc *SystemMetricsCollector) calculateCPUUtilization(node *corev1.Node) fl
 	}
 
 	// Simplified calculation - in reality, this would use metrics server
-	allocatableMilli := allocatable.MilliValue()
+	_ = allocatable.MilliValue()
 	capacityMilli := capacity.MilliValue()
 
 	if capacityMilli == 0 {
@@ -128,7 +128,7 @@ func (smc *SystemMetricsCollector) calculateMemoryUtilization(node *corev1.Node)
 	}
 
 	// Simplified calculation - in reality, this would use metrics server
-	allocatableBytes := allocatable.Value()
+	_ = allocatable.Value()
 	capacityBytes := capacity.Value()
 
 	if capacityBytes == 0 {
@@ -310,9 +310,10 @@ func (smc *SystemMetricsCollector) collectPowerPolicyMetrics(ctx context.Context
 	policyType := "power"
 
 	// Record power efficiency
-	if policy.Status.Efficiency != nil {
-		smc.metrics.RecordPowerEfficiency(policy.Namespace, policyName, "policy", *policy.Status.Efficiency)
-	}
+	// TODO: Add efficiency field to PowerPolicyStatus
+	// if policy.Status.Efficiency != nil {
+	//	smc.metrics.RecordPowerEfficiency(policy.Namespace, policyName, "policy", *policy.Status.Efficiency)
+	// }
 
 	// Record compliance (simplified)
 	compliance := 1.0

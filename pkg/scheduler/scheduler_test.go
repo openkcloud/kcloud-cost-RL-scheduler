@@ -51,9 +51,9 @@ var _ = Describe("Scheduler", func() {
 			Spec: kcloudv1alpha1.WorkloadOptimizerSpec{
 				WorkloadType: "training",
 				Priority:     5,
-				ResourceRequirements: kcloudv1alpha1.ResourceRequirements{
-					CPU:    resource.MustParse("2"),
-					Memory: resource.MustParse("4Gi"),
+				Resources: kcloudv1alpha1.ResourceRequirements{
+					CPU:    "2",
+					Memory: "4Gi",
 					GPU:    1,
 					NPU:    0,
 				},
@@ -73,7 +73,7 @@ var _ = Describe("Scheduler", func() {
 					Allocatable: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse("4"),
 						corev1.ResourceMemory: resource.MustParse("8Gi"),
-						corev1.ResourceGPU:    resource.MustParse("0"),
+						"nvidia.com/gpu":      resource.MustParse("0"),
 					},
 					Conditions: []corev1.NodeCondition{
 						{
@@ -94,7 +94,7 @@ var _ = Describe("Scheduler", func() {
 					Allocatable: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse("8"),
 						corev1.ResourceMemory: resource.MustParse("16Gi"),
-						corev1.ResourceGPU:    resource.MustParse("2"),
+						"nvidia.com/gpu":      resource.MustParse("2"),
 					},
 					Conditions: []corev1.NodeCondition{
 						{
@@ -115,7 +115,7 @@ var _ = Describe("Scheduler", func() {
 					Allocatable: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse("6"),
 						corev1.ResourceMemory: resource.MustParse("12Gi"),
-						corev1.ResourceNPU:    resource.MustParse("1"),
+						"huawei.com/npu":      resource.MustParse("1"),
 					},
 					Conditions: []corev1.NodeCondition{
 						{
@@ -130,7 +130,7 @@ var _ = Describe("Scheduler", func() {
 
 	Context("When scheduling workload", func() {
 		It("should schedule workload to appropriate node", func() {
-			result, err := scheduler.Schedule(workload, nodes)
+			result, err := scheduler.ScheduleWorkload(ctx, workload, nodes)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -140,7 +140,7 @@ var _ = Describe("Scheduler", func() {
 		})
 
 		It("should prefer GPU node for GPU workload", func() {
-			result, err := scheduler.Schedule(workload, nodes)
+			result, err := scheduler.ScheduleWorkload(ctx, workload, nodes)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -154,7 +154,7 @@ var _ = Describe("Scheduler", func() {
 			workload.Spec.ResourceRequirements.GPU = 0
 			workload.Spec.ResourceRequirements.NPU = 1
 
-			result, err := scheduler.Schedule(workload, nodes)
+			result, err := scheduler.ScheduleWorkload(ctx, workload, nodes)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -168,7 +168,7 @@ var _ = Describe("Scheduler", func() {
 			workload.Spec.ResourceRequirements.GPU = 0
 			workload.Spec.ResourceRequirements.NPU = 0
 
-			result, err := scheduler.Schedule(workload, nodes)
+			result, err := scheduler.ScheduleWorkload(ctx, workload, nodes)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -178,14 +178,14 @@ var _ = Describe("Scheduler", func() {
 		})
 
 		It("should handle empty node list", func() {
-			result, err := scheduler.Schedule(workload, []corev1.Node{})
+			result, err := scheduler.ScheduleWorkload(ctx, workload, []corev1.Node{})
 
 			Expect(err).To(HaveOccurred())
 			Expect(result).To(BeNil())
 		})
 
 		It("should handle nil workload", func() {
-			result, err := scheduler.Schedule(nil, nodes)
+			result, err := scheduler.ScheduleWorkload(ctx, nil, nodes)
 
 			Expect(err).To(HaveOccurred())
 			Expect(result).To(BeNil())
@@ -202,7 +202,7 @@ var _ = Describe("Scheduler", func() {
 						Allocatable: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("4"),
 							corev1.ResourceMemory: resource.MustParse("8Gi"),
-							corev1.ResourceGPU:    resource.MustParse("0"),
+							"nvidia.com/gpu":      resource.MustParse("0"),
 						},
 						Conditions: []corev1.NodeCondition{
 							{
@@ -214,7 +214,7 @@ var _ = Describe("Scheduler", func() {
 				},
 			}
 
-			result, err := scheduler.Schedule(workload, cpuOnlyNodes)
+			result, err := scheduler.ScheduleWorkload(ctx, workload, cpuOnlyNodes)
 
 			Expect(err).To(HaveOccurred())
 			Expect(result).To(BeNil())
@@ -224,7 +224,7 @@ var _ = Describe("Scheduler", func() {
 	Context("When evaluating node suitability", func() {
 		It("should evaluate node resource availability", func() {
 			node := nodes[1] // GPU node
-			score := scheduler.evaluateNode(workload, node)
+			score, err := scheduler.evaluateNode(ctx, workload, node)
 
 			Expect(score).To(BeNumerically(">=", 0))
 			Expect(score).To(BeNumerically("<=", 1))
@@ -240,20 +240,8 @@ var _ = Describe("Scheduler", func() {
 		It("should consider node labels and affinity", func() {
 			// Add node affinity to workload
 			workload.Spec.PlacementPolicy = &kcloudv1alpha1.PlacementPolicy{
-				NodeAffinity: &corev1.NodeAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-						NodeSelectorTerms: []corev1.NodeSelectorTerm{
-							{
-								MatchExpressions: []corev1.NodeSelectorRequirement{
-									{
-										Key:      "node-type",
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   []string{"gpu-optimized"},
-									},
-								},
-							},
-						},
-					},
+				NodeSelector: map[string]string{
+					"node-type": "gpu-optimized",
 				},
 			}
 
@@ -267,7 +255,7 @@ var _ = Describe("Scheduler", func() {
 	Context("When handling different workload types", func() {
 		It("should schedule training workloads appropriately", func() {
 			workload.Spec.WorkloadType = "training"
-			result, err := scheduler.Schedule(workload, nodes)
+			result, err := scheduler.ScheduleWorkload(ctx, workload, nodes)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -276,7 +264,7 @@ var _ = Describe("Scheduler", func() {
 
 		It("should schedule inference workloads appropriately", func() {
 			workload.Spec.WorkloadType = "inference"
-			result, err := scheduler.Schedule(workload, nodes)
+			result, err := scheduler.ScheduleWorkload(ctx, workload, nodes)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -285,7 +273,7 @@ var _ = Describe("Scheduler", func() {
 
 		It("should schedule batch workloads appropriately", func() {
 			workload.Spec.WorkloadType = "batch"
-			result, err := scheduler.Schedule(workload, nodes)
+			result, err := scheduler.ScheduleWorkload(ctx, workload, nodes)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -294,7 +282,7 @@ var _ = Describe("Scheduler", func() {
 
 		It("should schedule streaming workloads appropriately", func() {
 			workload.Spec.WorkloadType = "streaming"
-			result, err := scheduler.Schedule(workload, nodes)
+			result, err := scheduler.ScheduleWorkload(ctx, workload, nodes)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -305,10 +293,10 @@ var _ = Describe("Scheduler", func() {
 	Context("When handling different priorities", func() {
 		It("should consider workload priority", func() {
 			workload.Spec.Priority = 10 // High priority
-			result1, err1 := scheduler.Schedule(workload, nodes)
+			result1, err1 := scheduler.ScheduleWorkload(ctx, workload, nodes)
 
 			workload.Spec.Priority = 1 // Low priority
-			result2, err2 := scheduler.Schedule(workload, nodes)
+			result2, err2 := scheduler.ScheduleWorkload(ctx, workload, nodes)
 
 			Expect(err1).NotTo(HaveOccurred())
 			Expect(err2).NotTo(HaveOccurred())
@@ -327,7 +315,7 @@ var _ = Describe("Scheduler", func() {
 				BudgetLimit:    100.0,
 			}
 
-			result, err := scheduler.Schedule(workload, nodes)
+			result, err := scheduler.ScheduleWorkload(ctx, workload, nodes)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -339,7 +327,7 @@ var _ = Describe("Scheduler", func() {
 				MaxPowerUsage: 200.0,
 			}
 
-			result, err := scheduler.Schedule(workload, nodes)
+			result, err := scheduler.ScheduleWorkload(ctx, workload, nodes)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -357,7 +345,7 @@ var _ = Describe("Scheduler", func() {
 				},
 			}
 
-			result, err := scheduler.Schedule(workload, nodes)
+			result, err := scheduler.ScheduleWorkload(ctx, workload, nodes)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -373,7 +361,7 @@ var _ = Describe("Scheduler", func() {
 				Status: corev1.ConditionTrue,
 			})
 
-			result, err := scheduler.Schedule(workload, nodes)
+			result, err := scheduler.ScheduleWorkload(ctx, workload, nodes)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
@@ -392,7 +380,7 @@ var _ = Describe("Scheduler", func() {
 				NPU:    2,
 			}
 
-			result, err := scheduler.Schedule(workload, nodes)
+			result, err := scheduler.ScheduleWorkload(ctx, workload, nodes)
 
 			Expect(err).To(HaveOccurred())
 			Expect(result).To(BeNil())
@@ -406,7 +394,7 @@ var _ = Describe("Scheduler", func() {
 				NPU:    0,
 			}
 
-			result, err := scheduler.Schedule(workload, nodes)
+			result, err := scheduler.ScheduleWorkload(ctx, workload, nodes)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
