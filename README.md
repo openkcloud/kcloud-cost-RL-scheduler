@@ -1,10 +1,24 @@
-# kcloud-opt-operator
+# KCloud Workload Optimizer Operator
 
-Kubernetes Operator for AI반도체 워크로드 최적화 (Go)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8.svg)](https://golang.org/)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-1.19+-326CE5.svg)](https://kubernetes.io/)
+[![Helm](https://img.shields.io/badge/Helm-3.0+-0F1689.svg)](https://helm.sh/)
+
+Kubernetes Operator for AI Semiconductor Workload Optimization
 
 ## 개요
 
-kcloud-opt-operator는 Kubernetes 환경에서 AI반도체 워크로드의 비용 최적화를 자동화하는 Kubernetes Operator입니다. Custom Resource Definitions(CRD)를 통해 워크로드 최적화 정책을 선언적으로 관리하고, Controller 패턴으로 실제 최적화를 실행합니다.
+KCloud Workload Optimizer Operator는 Kubernetes 환경에서 AI 반도체 워크로드의 비용 및 전력 최적화를 자동화하는 Kubernetes Operator입니다. Custom Resource Definitions(CRD)를 통해 워크로드 최적화 정책을 선언적으로 관리하고, Controller 패턴으로 실제 최적화를 실행합니다.
+
+### 주요 특징
+
+- 🚀 **자동화된 최적화**: 워크로드별 비용 및 전력 최적화 자동 실행
+- 📊 **실시간 모니터링**: Prometheus 메트릭을 통한 실시간 모니터링
+- 🔧 **유연한 정책**: CostPolicy와 PowerPolicy를 통한 세밀한 제어
+- 🎯 **스마트 스케줄링**: 고급 스케줄링 알고리즘으로 최적 노드 배치
+- 🔒 **보안 강화**: Admission Webhook을 통한 자동 정책 적용
+- 📦 **Helm 지원**: 원클릭 배포를 위한 완전한 Helm 차트
 
 ## 주요 기능
 
@@ -96,6 +110,19 @@ status:
 
 ## 설치 및 배포
 
+### 빠른 시작
+
+```bash
+# Helm을 사용한 설치 (권장)
+helm install kcloud-operator ./charts/kcloud-operator \
+  --namespace kcloud-operator-system \
+  --create-namespace
+
+# 설치 확인
+kubectl get pods -n kcloud-operator-system
+kubectl get crd | grep kcloud.io
+```
+
 ### 개발 환경
 
 ```bash
@@ -122,18 +149,13 @@ make install
 make deploy
 
 # 확인
-kubectl get pods -n kcloud-system
+kubectl get pods -n kcloud-operator-system
 kubectl get crd | grep kcloud.io
 ```
 
-### Helm 설치
+### 상세한 배포 가이드
 
-```bash
-# Helm 차트 설치
-helm install kcloud-operator ./charts/kcloud-operator \
-  --namespace kcloud-system \
-  --create-namespace
-```
+자세한 배포 방법은 [배포 가이드](docs/DEPLOYMENT_GUIDE.md)를 참조하세요.
 
 ## 설정
 
@@ -349,6 +371,24 @@ make test-integration
 # E2E 테스트
 make test-e2e
 ```
+
+## 문서
+
+- **[API 문서](docs/API.md)**: CRD 스펙 및 API 레퍼런스
+- **[사용 예시](docs/EXAMPLES.md)**: 다양한 워크로드 최적화 예시
+- **[개발자 가이드](docs/DEVELOPER_GUIDE.md)**: 개발 환경 설정 및 기여 가이드
+- **[배포 가이드](docs/DEPLOYMENT_GUIDE.md)**: 프로덕션 배포 및 운영 가이드
+- **[Helm 차트](charts/kcloud-operator/README.md)**: Helm 차트 사용법
+
+## 기여하기
+
+프로젝트에 기여하고 싶으시다면 [개발자 가이드](docs/DEVELOPER_GUIDE.md)를 참조하세요.
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## 라이선스
 
