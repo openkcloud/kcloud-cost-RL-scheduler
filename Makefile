@@ -233,6 +233,31 @@ undeploy-monitoring: ## Remove monitoring resources from the K8s cluster.
 	kubectl delete -f config/prometheus/ --ignore-not-found=true
 	@echo "Monitoring resources removed successfully!"
 
+.PHONY: test
+test: generate fmt vet ## Run tests.
+	go test ./... -coverprofile cover.out
+
+.PHONY: test-unit
+test-unit: generate fmt vet ## Run unit tests.
+	go test ./internal/... ./pkg/... -coverprofile cover.out
+
+.PHONY: test-controller
+test-controller: generate fmt vet ## Run controller tests.
+	go test ./internal/controller/... -coverprofile cover.out
+
+.PHONY: test-optimizer
+test-optimizer: generate fmt vet ## Run optimizer tests.
+	go test ./pkg/optimizer/... -coverprofile cover.out
+
+.PHONY: test-scheduler
+test-scheduler: generate fmt vet ## Run scheduler tests.
+	go test ./pkg/scheduler/... -coverprofile cover.out
+
+.PHONY: test-coverage
+test-coverage: test ## Run tests with coverage report.
+	go tool cover -html=cover.out -o cover.html
+	@echo "Coverage report generated: cover.html"
+
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
