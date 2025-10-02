@@ -261,6 +261,24 @@ func (c *CostCalculator) ParseResourceString(resourceStr string) (float64, error
 	}
 }
 
+// parseCPU parses CPU resource string (alias for ParseResourceString for CPU)
+func (c *CostCalculator) parseCPU(cpu string) float64 {
+	value, err := c.ParseResourceString(cpu)
+	if err != nil {
+		return 0
+	}
+	return value
+}
+
+// parseMemory parses memory resource string (alias for ParseResourceString for memory)
+func (c *CostCalculator) parseMemory(memory string) float64 {
+	value, err := c.ParseResourceString(memory)
+	if err != nil {
+		return 0
+	}
+	return value
+}
+
 // CalculateCostFromResourceString calculates cost from resource string
 func (c *CostCalculator) CalculateCostFromResourceString(cpuStr, memoryStr string, gpuCount, npuCount int32) (float64, error) {
 	cpuCores, err := c.ParseResourceString(cpuStr)
