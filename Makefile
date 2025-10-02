@@ -258,6 +258,29 @@ test-coverage: test ## Run tests with coverage report.
 	go tool cover -html=cover.out -o cover.html
 	@echo "Coverage report generated: cover.html"
 
+.PHONY: test-e2e
+test-e2e: ## Run E2E tests.
+	go test -tags=e2e ./test/e2e/... -v
+
+.PHONY: test-integration
+test-integration: ## Run integration tests.
+	go test ./test/integration/... -v
+
+.PHONY: test-all
+test-all: test-unit test-e2e ## Run all tests (unit + e2e).
+
+.PHONY: test-setup
+test-setup: ## Setup test environment.
+	@echo "Setting up test environment..."
+	kubectl create namespace kcloud-e2e-test --dry-run=client -o yaml | kubectl apply -f -
+	@echo "Test environment setup complete"
+
+.PHONY: test-cleanup
+test-cleanup: ## Cleanup test environment.
+	@echo "Cleaning up test environment..."
+	kubectl delete namespace kcloud-e2e-test --ignore-not-found=true
+	@echo "Test environment cleanup complete"
+
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
