@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kcloudv1alpha1 "github.com/KETI-Cloud-Platform/k8s-workload-operator/api/v1alpha1"
+	"github.com/KETI-Cloud-Platform/k8s-workload-operator/pkg/metrics"
 	"github.com/KETI-Cloud-Platform/k8s-workload-operator/pkg/optimizer"
 	"github.com/KETI-Cloud-Platform/k8s-workload-operator/pkg/scheduler"
 )
@@ -40,6 +41,7 @@ type WorkloadOptimizerReconciler struct {
 	Scheme    *runtime.Scheme
 	Optimizer *optimizer.Engine
 	Scheduler *scheduler.Scheduler
+	Metrics   *metrics.MetricsCollector
 }
 
 //+kubebuilder:rbac:groups=kcloud.io,resources=workloadoptimizers,verbs=get;list;watch;create;update;patch;delete
@@ -68,6 +70,10 @@ func (r *WorkloadOptimizerReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	// Check if the resource is being deleted
 	if !wo.DeletionTimestamp.IsZero() {
 		log.Info("WorkloadOptimizer is being deleted")
+		// Record deletion metrics
+		if r.Metrics != nil {
+			r.Metrics.RecordWorkloadOptimizerDeleted(wo.Namespace, wo.Name, wo.Spec.WorkloadType)
+		}
 		return r.handleDeletion(ctx, &wo)
 	}
 
@@ -94,6 +100,21 @@ func (r *WorkloadOptimizerReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	if err := r.updateStatus(ctx, &wo, optimizationResult); err != nil {
 		log.Error(err, "Failed to update status")
 		return ctrl.Result{}, err
+	}
+
+	// Record metrics
+	if r.Metrics != nil {
+		r.Metrics.RecordWorkloadOptimizerCreated(wo.Namespace, wo.Name, wo.Spec.WorkloadType)
+		r.Metrics.RecordWorkloadOptimizerPhase(wo.Namespace, wo.Name, wo.Status.Phase, wo.Spec.WorkloadType)
+		if optimizationResult.Score > 0 {
+			r.Metrics.RecordWorkloadOptimizerScore(wo.Namespace, wo.Name, wo.Spec.WorkloadType, optimizationResult.Score)
+		}
+		if optimizationResult.EstimatedCost > 0 {
+			r.Metrics.RecordWorkloadOptimizerCost(wo.Namespace, wo.Name, wo.Spec.WorkloadType, optimizationResult.EstimatedCost)
+		}
+		if optimizationResult.EstimatedPower > 0 {
+			r.Metrics.RecordWorkloadOptimizerPower(wo.Namespace, wo.Name, wo.Spec.WorkloadType, optimizationResult.EstimatedPower)
+		}
 	}
 
 	// Set requeue time based on optimization result

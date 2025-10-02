@@ -220,6 +220,19 @@ undeploy-rbac: ## Remove RBAC resources from the K8s cluster.
 	kubectl delete -f config/rbac/ --ignore-not-found=true
 	@echo "RBAC resources removed successfully!"
 
+.PHONY: deploy-monitoring
+deploy-monitoring: ## Deploy monitoring resources to the K8s cluster.
+	@echo "Deploying monitoring resources..."
+	kubectl apply -f config/prometheus/monitor.yaml
+	kubectl apply -f config/prometheus/grafana-dashboard.yaml
+	@echo "Monitoring resources deployed successfully!"
+
+.PHONY: undeploy-monitoring
+undeploy-monitoring: ## Remove monitoring resources from the K8s cluster.
+	@echo "Removing monitoring resources..."
+	kubectl delete -f config/prometheus/ --ignore-not-found=true
+	@echo "Monitoring resources removed successfully!"
+
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
