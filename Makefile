@@ -167,6 +167,34 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
+.PHONY: deploy-crd
+deploy-crd: ## Deploy CRDs to the K8s cluster.
+	@echo "Deploying CRDs..."
+	kubectl apply -f config/crd/bases/kcloud.io_workloadoptimizers.yaml
+	kubectl apply -f config/crd/bases/kcloud.io_costpolicies.yaml
+	kubectl apply -f config/crd/bases/kcloud.io_powerpolicies.yaml
+	@echo "CRDs deployed successfully!"
+
+.PHONY: deploy-samples
+deploy-samples: ## Deploy sample resources to the K8s cluster.
+	@echo "Deploying sample resources..."
+	kubectl apply -f config/samples/kcloud.io_v1alpha1_workloadoptimizer.yaml
+	kubectl apply -f config/samples/kcloud.io_v1alpha1_costpolicy.yaml
+	kubectl apply -f config/samples/kcloud.io_v1alpha1_powerpolicy.yaml
+	@echo "Sample resources deployed successfully!"
+
+.PHONY: undeploy-crd
+undeploy-crd: ## Remove CRDs from the K8s cluster.
+	@echo "Removing CRDs..."
+	kubectl delete -f config/crd/bases/ --ignore-not-found=true
+	@echo "CRDs removed successfully!"
+
+.PHONY: undeploy-samples
+undeploy-samples: ## Remove sample resources from the K8s cluster.
+	@echo "Removing sample resources..."
+	kubectl delete -f config/samples/ --ignore-not-found=true
+	@echo "Sample resources removed successfully!"
+
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
