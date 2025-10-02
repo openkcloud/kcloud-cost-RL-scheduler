@@ -195,6 +195,31 @@ undeploy-samples: ## Remove sample resources from the K8s cluster.
 	kubectl delete -f config/samples/ --ignore-not-found=true
 	@echo "Sample resources removed successfully!"
 
+.PHONY: deploy-rbac
+deploy-rbac: ## Deploy RBAC resources to the K8s cluster.
+	@echo "Deploying RBAC resources..."
+	kubectl apply -f config/rbac/service_account.yaml
+	kubectl apply -f config/rbac/webhook_service_account.yaml
+	kubectl apply -f config/rbac/role.yaml
+	kubectl apply -f config/rbac/webhook_role.yaml
+	kubectl apply -f config/rbac/metrics_auth_role.yaml
+	kubectl apply -f config/rbac/metrics_reader_role.yaml
+	kubectl apply -f config/rbac/role_binding.yaml
+	kubectl apply -f config/rbac/webhook_role_binding.yaml
+	kubectl apply -f config/rbac/metrics_auth_role_binding.yaml
+	kubectl apply -f config/rbac/leader_election_role.yaml
+	kubectl apply -f config/rbac/leader_election_role_binding.yaml
+	kubectl apply -f config/rbac/workloadoptimizer_admin_role.yaml
+	kubectl apply -f config/rbac/workloadoptimizer_editor_role.yaml
+	kubectl apply -f config/rbac/workloadoptimizer_viewer_role.yaml
+	@echo "RBAC resources deployed successfully!"
+
+.PHONY: undeploy-rbac
+undeploy-rbac: ## Remove RBAC resources from the K8s cluster.
+	@echo "Removing RBAC resources..."
+	kubectl delete -f config/rbac/ --ignore-not-found=true
+	@echo "RBAC resources removed successfully!"
+
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
