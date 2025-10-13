@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // CostPolicySpec defines the desired state of CostPolicy
@@ -187,22 +186,6 @@ type CostPolicyList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []CostPolicy `json:"items"`
-}
-
-// DeepCopyObject returns a generically typed copy of an object
-func (in *CostPolicy) DeepCopyObject() runtime.Object {
-	if c := in.DeepCopy(); c != nil {
-		return c
-	}
-	return nil
-}
-
-// DeepCopyObject returns a generically typed copy of an object
-func (in *CostPolicyList) DeepCopyObject() runtime.Object {
-	if c := in.DeepCopy(); c != nil {
-		return c
-	}
-	return nil
 }
 
 func init() {

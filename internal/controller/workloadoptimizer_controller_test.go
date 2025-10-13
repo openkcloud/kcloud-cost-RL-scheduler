@@ -449,3 +449,8 @@ var _ = Describe("WorkloadOptimizer Controller", func() {
 		})
 	})
 })
+
+// Helper functions
+func float64Ptr(f float64) *float64 {
+	return &f
+}
