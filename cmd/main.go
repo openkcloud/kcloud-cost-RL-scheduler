@@ -37,6 +37,7 @@ import (
 
 	kcloudv1alpha1 "github.com/KETI-Cloud-Platform/k8s-workload-operator/api/v1alpha1"
 	"github.com/KETI-Cloud-Platform/k8s-workload-operator/internal/controller"
+	"github.com/KETI-Cloud-Platform/k8s-workload-operator/pkg/metrics"
 	"github.com/KETI-Cloud-Platform/k8s-workload-operator/pkg/optimizer"
 	"github.com/KETI-Cloud-Platform/k8s-workload-operator/pkg/scheduler"
 	kcloudwebhook "github.com/KETI-Cloud-Platform/k8s-workload-operator/pkg/webhook"
@@ -185,12 +186,21 @@ func main() {
 	optimizerEngine := optimizer.NewEngine()
 	schedulerInstance := scheduler.NewScheduler()
 
+	// Initialize metrics collector
+	metricsCollector := metrics.NewMetricsCollector()
+	systemMetricsCollector := metrics.NewSystemMetricsCollector(mgr.GetClient(), metricsCollector)
+
+	// Start metrics collection
+	go metricsCollector.StartMetricsCollection(ctrl.SetupSignalHandler())
+	go systemMetricsCollector.StartPeriodicCollection(ctrl.SetupSignalHandler())
+
 	// Setup WorkloadOptimizer controller
 	if err = (&controller.WorkloadOptimizerReconciler{
 		Client:    mgr.GetClient(),
 		Scheme:    mgr.GetScheme(),
 		Optimizer: optimizerEngine,
 		Scheduler: schedulerInstance,
+		Metrics:   metricsCollector,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "WorkloadOptimizer")
 		os.Exit(1)

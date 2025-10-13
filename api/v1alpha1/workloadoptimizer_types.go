@@ -27,7 +27,8 @@ import (
 type WorkloadOptimizerSpec struct {
 	// WorkloadType defines the type of workload (training, serving, inference, etc.)
 	// +kubebuilder:validation:Enum=training;serving;inference;batch
-	// +required
+	// +kubebuilder:validation:Required
+	// +kubebuilder:default=serving
 	WorkloadType string `json:"workloadType"`
 
 	// Priority defines the priority of the workload (0-100)
@@ -71,11 +72,13 @@ type ResourceRequirements struct {
 
 	// GPU resource requirement
 	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=16
 	// +optional
 	GPU int32 `json:"gpu,omitempty"`
 
 	// NPU resource requirement
 	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=16
 	// +optional
 	NPU int32 `json:"npu,omitempty"`
 }
@@ -84,6 +87,7 @@ type ResourceRequirements struct {
 type CostConstraints struct {
 	// MaxCostPerHour defines the maximum cost per hour in USD
 	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=10000
 	// +required
 	MaxCostPerHour float64 `json:"maxCostPerHour"`
 
@@ -93,6 +97,7 @@ type CostConstraints struct {
 
 	// BudgetLimit defines the total budget limit in USD
 	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=1000000
 	// +optional
 	BudgetLimit *float64 `json:"budgetLimit,omitempty"`
 }
@@ -101,6 +106,7 @@ type CostConstraints struct {
 type PowerConstraints struct {
 	// MaxPowerUsage defines the maximum power usage in Watts
 	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=10000
 	// +required
 	MaxPowerUsage float64 `json:"maxPowerUsage"`
 
@@ -176,6 +182,7 @@ type ScalingMetric struct {
 type WorkloadOptimizerStatus struct {
 	// Phase represents the current phase of the workload optimization
 	// +kubebuilder:validation:Enum=Pending;Optimizing;Optimized;Failed;Suspended
+	// +kubebuilder:default=Pending
 	// +optional
 	Phase string `json:"phase,omitempty"`
 
@@ -228,6 +235,16 @@ type WorkloadOptimizerStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Namespaced,categories=all
+// +kubebuilder:printcolumn:name="Workload Type",type="string",JSONPath=".spec.workloadType"
+// +kubebuilder:printcolumn:name="Priority",type="integer",JSONPath=".spec.priority"
+// +kubebuilder:printcolumn:name="CPU",type="string",JSONPath=".spec.resources.cpu"
+// +kubebuilder:printcolumn:name="Memory",type="string",JSONPath=".spec.resources.memory"
+// +kubebuilder:printcolumn:name="GPU",type="integer",JSONPath=".spec.resources.gpu"
+// +kubebuilder:printcolumn:name="NPU",type="integer",JSONPath=".spec.resources.npu"
+// +kubebuilder:printcolumn:name="Phase",type="string",JSONPath=".status.phase"
+// +kubebuilder:printcolumn:name="Optimization Score",type="number",JSONPath=".status.optimizationScore"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // WorkloadOptimizer is the Schema for the workloadoptimizers API
 type WorkloadOptimizer struct {
@@ -247,6 +264,7 @@ type WorkloadOptimizer struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:scope=Namespaced,categories=all
 
 // WorkloadOptimizerList contains a list of WorkloadOptimizer
 type WorkloadOptimizerList struct {

@@ -167,6 +167,156 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
+.PHONY: deploy-crd
+deploy-crd: ## Deploy CRDs to the K8s cluster.
+	@echo "Deploying CRDs..."
+	kubectl apply -f config/crd/bases/kcloud.io_workloadoptimizers.yaml
+	kubectl apply -f config/crd/bases/kcloud.io_costpolicies.yaml
+	kubectl apply -f config/crd/bases/kcloud.io_powerpolicies.yaml
+	@echo "CRDs deployed successfully!"
+
+.PHONY: deploy-samples
+deploy-samples: ## Deploy sample resources to the K8s cluster.
+	@echo "Deploying sample resources..."
+	kubectl apply -f config/samples/kcloud.io_v1alpha1_workloadoptimizer.yaml
+	kubectl apply -f config/samples/kcloud.io_v1alpha1_costpolicy.yaml
+	kubectl apply -f config/samples/kcloud.io_v1alpha1_powerpolicy.yaml
+	@echo "Sample resources deployed successfully!"
+
+.PHONY: undeploy-crd
+undeploy-crd: ## Remove CRDs from the K8s cluster.
+	@echo "Removing CRDs..."
+	kubectl delete -f config/crd/bases/ --ignore-not-found=true
+	@echo "CRDs removed successfully!"
+
+.PHONY: undeploy-samples
+undeploy-samples: ## Remove sample resources from the K8s cluster.
+	@echo "Removing sample resources..."
+	kubectl delete -f config/samples/ --ignore-not-found=true
+	@echo "Sample resources removed successfully!"
+
+.PHONY: deploy-rbac
+deploy-rbac: ## Deploy RBAC resources to the K8s cluster.
+	@echo "Deploying RBAC resources..."
+	kubectl apply -f config/rbac/service_account.yaml
+	kubectl apply -f config/rbac/webhook_service_account.yaml
+	kubectl apply -f config/rbac/role.yaml
+	kubectl apply -f config/rbac/webhook_role.yaml
+	kubectl apply -f config/rbac/metrics_auth_role.yaml
+	kubectl apply -f config/rbac/metrics_reader_role.yaml
+	kubectl apply -f config/rbac/role_binding.yaml
+	kubectl apply -f config/rbac/webhook_role_binding.yaml
+	kubectl apply -f config/rbac/metrics_auth_role_binding.yaml
+	kubectl apply -f config/rbac/leader_election_role.yaml
+	kubectl apply -f config/rbac/leader_election_role_binding.yaml
+	kubectl apply -f config/rbac/workloadoptimizer_admin_role.yaml
+	kubectl apply -f config/rbac/workloadoptimizer_editor_role.yaml
+	kubectl apply -f config/rbac/workloadoptimizer_viewer_role.yaml
+	@echo "RBAC resources deployed successfully!"
+
+.PHONY: undeploy-rbac
+undeploy-rbac: ## Remove RBAC resources from the K8s cluster.
+	@echo "Removing RBAC resources..."
+	kubectl delete -f config/rbac/ --ignore-not-found=true
+	@echo "RBAC resources removed successfully!"
+
+.PHONY: deploy-monitoring
+deploy-monitoring: ## Deploy monitoring resources to the K8s cluster.
+	@echo "Deploying monitoring resources..."
+	kubectl apply -f config/prometheus/monitor.yaml
+	kubectl apply -f config/prometheus/grafana-dashboard.yaml
+	@echo "Monitoring resources deployed successfully!"
+
+.PHONY: undeploy-monitoring
+undeploy-monitoring: ## Remove monitoring resources from the K8s cluster.
+	@echo "Removing monitoring resources..."
+	kubectl delete -f config/prometheus/ --ignore-not-found=true
+	@echo "Monitoring resources removed successfully!"
+
+.PHONY: test
+test: generate fmt vet ## Run tests.
+	go test ./... -coverprofile cover.out
+
+.PHONY: test-unit
+test-unit: generate fmt vet ## Run unit tests.
+	go test ./internal/... ./pkg/... -coverprofile cover.out
+
+.PHONY: test-controller
+test-controller: generate fmt vet ## Run controller tests.
+	go test ./internal/controller/... -coverprofile cover.out
+
+.PHONY: test-optimizer
+test-optimizer: generate fmt vet ## Run optimizer tests.
+	go test ./pkg/optimizer/... -coverprofile cover.out
+
+.PHONY: test-scheduler
+test-scheduler: generate fmt vet ## Run scheduler tests.
+	go test ./pkg/scheduler/... -coverprofile cover.out
+
+.PHONY: test-coverage
+test-coverage: test ## Run tests with coverage report.
+	go tool cover -html=cover.out -o cover.html
+	@echo "Coverage report generated: cover.html"
+
+.PHONY: test-e2e
+test-e2e: ## Run E2E tests.
+	go test -tags=e2e ./test/e2e/... -v
+
+.PHONY: test-integration
+test-integration: ## Run integration tests.
+	go test ./test/integration/... -v
+
+.PHONY: test-all
+test-all: test-unit test-e2e ## Run all tests (unit + e2e).
+
+.PHONY: test-setup
+test-setup: ## Setup test environment.
+	@echo "Setting up test environment..."
+	kubectl create namespace kcloud-e2e-test --dry-run=client -o yaml | kubectl apply -f -
+	@echo "Test environment setup complete"
+
+.PHONY: test-cleanup
+test-cleanup: ## Cleanup test environment.
+	@echo "Cleaning up test environment..."
+	kubectl delete namespace kcloud-e2e-test --ignore-not-found=true
+	@echo "Test environment cleanup complete"
+
+.PHONY: helm-lint
+helm-lint: ## Lint Helm chart.
+	helm lint charts/kcloud-operator
+
+.PHONY: helm-package
+helm-package: ## Package Helm chart.
+	helm package charts/kcloud-operator
+
+.PHONY: helm-install
+helm-install: ## Install Helm chart.
+	helm install kcloud-operator charts/kcloud-operator --create-namespace --namespace kcloud-operator-system
+
+.PHONY: helm-upgrade
+helm-upgrade: ## Upgrade Helm chart.
+	helm upgrade kcloud-operator charts/kcloud-operator --namespace kcloud-operator-system
+
+.PHONY: helm-uninstall
+helm-uninstall: ## Uninstall Helm chart.
+	helm uninstall kcloud-operator --namespace kcloud-operator-system
+
+.PHONY: helm-status
+helm-status: ## Check Helm chart status.
+	helm status kcloud-operator --namespace kcloud-operator-system
+
+.PHONY: helm-template
+helm-template: ## Generate Helm templates.
+	helm template kcloud-operator charts/kcloud-operator
+
+.PHONY: helm-dry-run
+helm-dry-run: ## Dry run Helm installation.
+	helm install kcloud-operator charts/kcloud-operator --dry-run --debug
+
+.PHONY: helm-values
+helm-values: ## Show Helm chart values.
+	helm show values charts/kcloud-operator
+
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
