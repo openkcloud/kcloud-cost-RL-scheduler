@@ -1,0 +1,13 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    if: ${{ false }}   
+    name: Run on Ubuntu
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "skip tests"
