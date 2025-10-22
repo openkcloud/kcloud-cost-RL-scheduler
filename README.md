@@ -1,15 +1,15 @@
-# KCloud Workload Optimizer Operator
+# KCloud Workload Optimizer Scheduler
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8.svg)](https://golang.org/)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-1.19+-326CE5.svg)](https://kubernetes.io/)
 [![Helm](https://img.shields.io/badge/Helm-3.0+-0F1689.svg)](https://helm.sh/)
 
-Kubernetes Operator for AI Semiconductor Workload Optimization
+Kubernetes Scheduler for AI Semiconductor Workload Optimization
 
 ## 개요
 
-KCloud Workload Optimizer Operator는 Kubernetes 환경에서 AI 반도체 워크로드의 비용 및 전력 최적화를 자동화하는 Kubernetes Operator입니다. Custom Resource Definitions(CRD)를 통해 워크로드 최적화 정책을 선언적으로 관리하고, Controller 패턴으로 실제 최적화를 실행합니다.
+KCloud Workload Optimizer Scheduler는 Kubernetes 환경에서 AI 반도체 워크로드의 비용 및 전력 최적화를 자동화하는 Kubernetes Scheduler입니다. Custom Resource Definitions(CRD)를 통해 워크로드 최적화 정책을 선언적으로 관리하고, Controller 패턴으로 실제 최적화를 실행합니다.
 
 ### 주요 특징
 
@@ -37,23 +37,6 @@ KCloud Workload Optimizer Operator는 Kubernetes 환경에서 AI 반도체 워�
 - **Finalizer**: 워크로드 삭제 시 리소스 정리
 - **Event 기반**: Kubernetes 이벤트 기반 반응형 최적화
 
-## 아키텍처
-
-```
-operator/
-├── api/v1alpha1/            # CRD 정의
-├── controllers/             # Controller 로직  
-├── cmd/manager/             # Operator 메인
-├── pkg/
-│   ├── webhook/            # Admission Webhook
-│   ├── scheduler/          # 스케줄링 로직
-│   └── optimizer/          # 최적화 엔진
-├── config/
-│   ├── crd/               # CRD 매니페스트
-│   ├── rbac/              # RBAC 설정
-│   └── webhook/           # Webhook 설정
-└── hack/                  # 개발 스크립트
-```
 
 ## CRD 정의
 
