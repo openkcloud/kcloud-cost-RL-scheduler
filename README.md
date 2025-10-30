@@ -13,7 +13,7 @@ KCloud Workload Optimizer Scheduler는 Kubernetes 환경에서 AI 반도체 워�
 
 ### 주요 특징
 
--  **자동화된 최적화**: 워크로드별 비용 및 전력 최적화 자동 실행
+-  **비용 최적화**: 워크로드별 비용 및 전력 최적화 자동 실행
 -  **실시간 모니터링**: Prometheus 메트릭을 통한 실시간 모니터링
 -  **유연한 정책**: CostPolicy와 PowerPolicy를 통한 세밀한 제어
 -  **스마트 스케줄링**: 고급 스케줄링 알고리즘으로 최적 노드 배치
