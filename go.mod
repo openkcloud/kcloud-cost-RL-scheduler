@@ -1,6 +1,6 @@
 module github.com/KETI-Cloud-Platform/k8s-workload-operator
 
-go 1.24.5
+go 1.18
 
 require (
 	github.com/onsi/ginkgo/v2 v2.22.0
